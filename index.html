@@ -1,90 +1,711 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Expiring Deployments Helm Repository</title>
-  <meta name="description" content="Automate cleanup of Kubernetes preview namespaces and Helm releases with Expiring Deployments, a safe Helm chart that enforces TTL policies." />
-  <meta name="keywords" content="Expiring Deployments, Helm chart, Kubernetes, preview branches, CronJob cleanup, namespace TTL, helm releases" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="robots" content="index,follow" />
-  <meta property="og:title" content="Expiring Deployments Helm Chart" />
-  <meta property="og:description" content="Safe-by-default CronJob for namespaces, Helm releases, preview environments, and automation hygiene." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://aeyeio.github.io/expiring-deployments/" />
-  <meta property="og:image" content="https://aeyeio.github.io/expiring-deployments/expiring-deployments-0.1.3.tgz" />
-  <link rel="canonical" href="https://aeyeio.github.io/expiring-deployments/" />
-  <link rel="preload" href="https://aeyeio.github.io/expiring-deployments/index.yaml" as="fetch" type="application/x-yaml" crossorigin />
-  <script src="https://unpkg.com/@motion-canvas/core"></script>
-  <script async src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
-  <style>
-    :root { background:#050505; color:#f5f5f5; font-family: "Inter", system-ui, sans-serif; }
-    body { margin:0; }
-    main { min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:3rem 1rem; gap:1.5rem; background:radial-gradient(circle at top, rgba(0,160,255,0.1), transparent 45%), #050505; }
-    .panel { background:rgba(3,3,3,0.85); border:1px solid rgba(255,255,255,0.08); border-radius:24px; padding:2rem; max-width:900px; width:100%; box-shadow:0 30px 90px rgba(0,0,0,0.35); }
-    h1 { font-size:clamp(2.2rem, 5vw, 3.4rem); margin-bottom:.25rem; }
-    h2 { margin-top:1.75rem; font-size:1.3rem; }
-    p { line-height:1.6; margin-bottom:1rem; }
-    .badge { display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .75rem; border-radius:999px; background:#0b5f8b; text-transform:uppercase; font-size:.75rem; letter-spacing:.08em; }
-    .actions { display:flex; gap:.75rem; flex-wrap:wrap; }
-    button { border:none; border-radius:12px; font-size:1rem; font-weight:600; padding:.85rem 1.4rem; cursor:pointer; }
-    button.primary { background:#00a0ff; color:#fff; }
-    button.secondary { background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.4); }
-    code { background:rgba(255,255,255,0.08); padding:.15rem .45rem; border-radius:6px; }
-    ul { margin:0; padding-left:1.2rem; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
-    .tile { padding:1rem; border-radius:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
-    footer { text-align:center; margin-top:2rem; font-size:.85rem; color:rgba(255,255,255,0.65); }
-    @media (max-width:600px){ main{padding:2rem 0.5rem;} .panel{padding:1.5rem;} }
-  </style>
-</head>
-<body>
-  <main>
-    <div class="panel">
-      <span class="badge">Helm • Automation</span>
-      <h1>Expiring Deployments</h1>
-      <p>Automate cleanup for Kubernetes preview namespaces, feature branches, QA sandboxes, and ephemeral Helm releases. Expiring Deployments is a Helm chart that ships a CronJob to enforce TTL policies, honor protected namespaces, and log every decision.</p>
-      <div class="actions">
-        <a href="https://aeyeio.github.io/expiring-deployments/index.yaml" target="_blank" rel="noopener"><button class="primary">Download index.yaml</button></a>
-        <a href="https://aeyeio.github.io/expiring-deployments/expiring-deployments-0.1.3.tgz" target="_blank" rel="noopener"><button class="secondary">Download chart</button></a>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#050505" />
+
+    <title>Expiring Deployments — Kubernetes Preview Cleanup Helm Chart</title>
+    <meta
+      name="description"
+      content="Expiring Deployments is a safe-by-default Helm chart that installs a Kubernetes CronJob to automatically clean up preview environments, expiring namespaces, and short-lived Helm releases using TTL annotations."
+    />
+    <meta
+      name="keywords"
+      content="kubernetes, helm, preview environments, preview branches, ephemeral environments, namespace ttl, helm release cleanup, cronjob, cluster hygiene, cost control"
+    />
+    <link rel="canonical" href="https://aeyeio.github.io/expiring-deployments/" />
+
+    <meta property="og:title" content="Expiring Deployments Helm Chart" />
+    <meta
+      property="og:description"
+      content="Install once per cluster. Opt in via annotations. Start in dry-run. Automatically clean up Kubernetes preview environments."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aeyeio.github.io/expiring-deployments/" />
+    <meta property="og:image" content="https://aeyeio.github.io/expiring-deployments/og.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preload" href="./index.yaml" as="fetch" type="application/x-yaml" crossorigin />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Expiring Deployments",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Kubernetes",
+        "description": "A Helm chart that installs a Kubernetes CronJob to delete expired namespaces and uninstall expired Helm releases using TTL annotations.",
+        "url": "https://aeyeio.github.io/expiring-deployments/",
+        "sameAs": ["https://github.com/aeyeio/expiring-deployments"]
+      }
+    </script>
+
+    <style>
+      :root {
+        --bg: #050505;
+        --panel: rgba(255, 255, 255, 0.045);
+        --panel2: rgba(255, 255, 255, 0.03);
+        --border: rgba(255, 255, 255, 0.1);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.72);
+        --muted2: rgba(255, 255, 255, 0.58);
+        --accent: #00a0ff;
+        --accent2: #7cf4ff;
+        --warn: #ffdf5d;
+        --radius: 22px;
+        --radius2: 16px;
+        --shadow: 0 50px 150px rgba(0, 0, 0, 0.55);
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .container {
+        width: min(1120px, calc(100% - 2rem));
+        margin: 0 auto;
+      }
+
+      .bg {
+        position: fixed;
+        inset: -30vh -20vw auto -20vw;
+        height: 70vh;
+        background: radial-gradient(closest-side at 20% 25%, rgba(0, 160, 255, 0.22), transparent 65%),
+          radial-gradient(closest-side at 75% 20%, rgba(124, 244, 255, 0.18), transparent 70%),
+          radial-gradient(closest-side at 60% 70%, rgba(255, 223, 93, 0.12), transparent 70%);
+        filter: blur(42px);
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(12px);
+        background: rgba(5, 5, 5, 0.72);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.95rem 0;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(0, 160, 255, 1), rgba(124, 244, 255, 1));
+        box-shadow: 0 12px 34px rgba(0, 160, 255, 0.25);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 0.9rem;
+        align-items: center;
+        color: var(--muted);
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+
+      .nav-links a {
+        padding: 0.35rem 0.6rem;
+        border-radius: 12px;
+      }
+
+      .nav-links a:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        text-decoration: none;
+      }
+
+      .nav-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.6rem 0.95rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.05);
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .nav-cta:hover {
+        text-decoration: none;
+        border-color: rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.07);
+      }
+
+      main {
+        padding: 3.25rem 0 3.5rem;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 2rem;
+        align-items: center;
+      }
+
+      .kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        color: var(--muted);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+      }
+
+      .kicker-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent2);
+        box-shadow: 0 0 0 7px rgba(124, 244, 255, 0.08);
+      }
+
+      h1 {
+        font-size: clamp(2.2rem, 5vw, 3.8rem);
+        line-height: 1.03;
+        letter-spacing: -0.035em;
+        margin: 0.7rem 0 0.8rem;
+      }
+
+      .subhead {
+        color: var(--muted);
+        font-size: 1.08rem;
+        line-height: 1.7;
+        margin: 0 0 1.35rem;
+      }
+
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.1rem;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.78);
+        font-weight: 700;
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1.25rem;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        padding: 0.9rem 1.2rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.05);
+        font-weight: 900;
+        letter-spacing: -0.01em;
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .btn:hover {
+        text-decoration: none;
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.26);
+        background: rgba(255, 255, 255, 0.07);
+      }
+
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(0, 160, 255, 1), rgba(124, 244, 255, 1));
+        color: #061018;
+        border-color: transparent;
+      }
+
+      .btn.primary:hover {
+        background: linear-gradient(135deg, rgba(0, 160, 255, 0.92), rgba(124, 244, 255, 0.92));
+      }
+
+      .cmd {
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+      }
+
+      .cmd-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .copy {
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        border-radius: 12px;
+        padding: 0.45rem 0.75rem;
+        font-weight: 900;
+      }
+
+      .copy:hover {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.26);
+      }
+
+      pre {
+        margin: 0;
+        padding: 1rem;
+        overflow: auto;
+        font-size: 0.95rem;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+
+      .hero-media {
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.02);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        min-height: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .hero-media::before {
+        content: "";
+        position: absolute;
+        inset: -50%;
+        background: radial-gradient(circle at 50% 55%, rgba(0, 160, 255, 0.18), transparent 60%),
+          radial-gradient(circle at 60% 25%, rgba(124, 244, 255, 0.14), transparent 60%);
+        filter: blur(18px);
+      }
+
+      .hero-media > * {
+        position: relative;
+      }
+
+      .section {
+        margin-top: 3.4rem;
+      }
+
+      .section-title {
+        font-size: 1.45rem;
+        letter-spacing: -0.01em;
+        margin: 0 0 0.9rem;
+      }
+
+      .section-sub {
+        margin: 0 0 1.4rem;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .card {
+        padding: 1.15rem;
+        border-radius: var(--radius2);
+        background: var(--panel2);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .card h3 {
+        margin: 0 0 0.55rem;
+        font-size: 1.05rem;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .panel {
+        border-radius: var(--radius);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 1.25rem;
+      }
+
+      .panel h3 {
+        margin: 0 0 0.6rem;
+        font-size: 1.1rem;
+        letter-spacing: -0.01em;
+      }
+
+      .mini {
+        color: var(--muted2);
+        font-size: 0.98rem;
+        line-height: 1.7;
+        margin: 0 0 0.85rem;
+      }
+
+      .footer {
+        margin-top: 3.6rem;
+        padding: 2rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted2);
+      }
+
+      .footer a {
+        color: var(--accent2);
+      }
+
+      .legal {
+        margin-top: 0.85rem;
+        font-size: 0.92rem;
+        line-height: 1.75;
+        color: rgba(255, 255, 255, 0.58);
+      }
+
+      @media (max-width: 980px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+        .hero-media {
+          min-height: 320px;
+        }
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .two-col {
+          grid-template-columns: 1fr;
+        }
+        .nav-links {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .btn {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="bg" aria-hidden="true"></div>
+
+    <header>
+      <div class="container">
+        <div class="nav">
+          <a class="brand" href="#top" aria-label="Expiring Deployments">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span>Expiring Deployments</span>
+          </a>
+
+          <nav class="nav-links" aria-label="Primary">
+            <a href="#install">Install</a>
+            <a href="#use">Use Cases</a>
+            <a href="#uninstall">Uninstall</a>
+            <a href="#support">Support</a>
+          </nav>
+
+          <a class="nav-cta" href="https://github.com/aeyeio/expiring-deployments" target="_blank" rel="noopener">GitHub</a>
+        </div>
       </div>
-      <div class="grid">
-        <div class="tile">
-          <h2>What it does well</h2>
-          <ul>
-            <li>Dry-run first, so audits show actions without deleting resources.</li>
-            <li>Metadata contract: <code>expiring-deployments.io/enabled</code>, <code>expires-at</code>, or <code>ttl-hours</code>.</li>
-            <li>Supports preview branches, QA clusters, and CI-created namespaces via selectors.</li>
-          </ul>
+    </header>
+
+    <main class="container" id="top">
+      <section class="hero">
+        <div>
+          <div class="kicker" data-hero>
+            <span class="kicker-dot" aria-hidden="true"></span>
+            <span>Kubernetes • Helm • Preview Environments</span>
+          </div>
+          <h1 data-hero>Automatically expire preview deployments.</h1>
+          <p class="subhead" data-hero>
+            Install once per cluster. Opt in via annotations. Start in dry-run. Keep namespaces and short-lived Helm releases from lingering after the PR
+            ships.
+          </p>
+
+          <div class="pill-row" data-hero>
+            <span class="pill">Dry-run default</span>
+            <span class="pill">Protected namespaces</span>
+            <span class="pill">Allowlists & selectors</span>
+            <span class="pill">Clear audit logs</span>
+          </div>
+
+          <div class="cta-row" data-hero>
+            <a class="btn primary" href="#install">Install with Helm</a>
+            <a class="btn" href="#use">Examples</a>
+            <a class="btn" href="./index.yaml" target="_blank" rel="noopener">index.yaml</a>
+            <a class="btn" href="./expiring-deployments-0.1.3.tgz" target="_blank" rel="noopener">chart.tgz</a>
+          </div>
+
+          <div class="cmd" id="install" data-reveal>
+            <div class="cmd-top">
+              <span>Quick install</span>
+              <button class="copy" type="button" data-copy="#cmd-install">Copy</button>
+            </div>
+            <pre><code id="cmd-install">helm repo add expiring-deployments https://aeyeio.github.io/expiring-deployments
+helm repo update
+helm install expiring-deployments expiring-deployments/expiring-deployments --version 0.1.3</code></pre>
+          </div>
         </div>
-        <div class="tile">
-          <h2>Install</h2>
-          <p><strong>GitHub Pages:</strong><br /><code>helm repo add expiring-deployments https://aeyeio.github.io/expiring-deployments</code><br /><code>helm install expiring-deployments expiring-deployments/expiring-deployments --version 0.1.3</code></p>
-          <p><strong>Harbor OCI:</strong><br /><code>helm registry login harbor.localhost ... --insecure</code><br /><code>helm install expiring-deployments oci://harbor.localhost/library/expiring-deployments/expiring-deployments --version 0.1.3 --insecure-skip-tls-verify</code></p>
+
+        <div class="hero-media" aria-label="Preview cleanup illustration" data-reveal>
+          <lottie-player
+            src="https://assets7.lottiefiles.com/packages/lf20_fg4yppkb.json"
+            background="transparent"
+            speed="1"
+            loop
+            autoplay
+            style="width: 100%; height: 420px"
+          ></lottie-player>
         </div>
-        <div class="tile">
-          <h2>Usage flows</h2>
-          <ul>
-            <li>PR previews: annotate <code>pr-1234</code> namespace with TTL; CronJob deletes it after merge + TTL.</li>
-            <li>Helm leases: include a TTL ConfigMap lease in a shared namespace; the CronJob uninstalls the release when the lease expires.</li>
-            <li>Manual sandboxes: install the chart with a TTL and let the CronJob remove the namespace later.</li>
-          </ul>
+      </section>
+
+      <section class="section" data-reveal>
+        <h2 class="section-title">What it does well</h2>
+        <p class="section-sub">
+          Preview branches and ephemeral environments are great until they become permanent. Expiring Deployments provides a standard, auditable cleanup loop
+          that reduces clutter and spend without risky “delete everything” automation.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <h3>Safe by default</h3>
+            <p>Dry-run starts on. Protected namespaces are never touched. A circuit breaker caps how much can be deleted per run.</p>
+          </div>
+          <div class="card">
+            <h3>Metadata-driven</h3>
+            <p>Opt in with annotations. Use <code>expires-at</code> or <code>ttl-hours</code> (with <code>created-at</code> fallback).</p>
+          </div>
+          <div class="card">
+            <h3>Preview-first</h3>
+            <p>Selectors keep cleanup scoped to preview branches, QA sandboxes, and intended namespaces—nothing else.</p>
+          </div>
         </div>
-      </div>
-      <p class="secondary">Need support? Email <a href="mailto:support@crescentsoftwarelabs.com">support@crescentsoftwarelabs.com</a></p>
-    </div>
-    <div class="panel">
-      <motion-player style="width:100%;height:320px;"></motion-player>
-      <h2>How to uninstall</h2>
-      <ul>
-        <li><code>helm uninstall expiring-deployments</code> to remove the CronJob and RBAC.</li>
-        <li>Drifted namespaces can be deleted with <code>kubectl delete ns &lt;name&gt;</code>.</li>
-        <li>Helm leases remain; the CronJob stops after uninstall.</li>
-      </ul>
-      <p class="secondary">As-is, no guarantees. Use the chart in non-production clusters first; review the CronJob logs before enabling real deletions.</p>
-    </div>
-  </main>
-  <footer>
-    <small>Expiring Deployments &middot; Automate namespace hygiene for Kubernetes previews, QA, and Helm releases.</small>
-  </footer>
-</body>
+      </section>
+
+      <section class="section" id="use" data-reveal>
+        <h2 class="section-title">Example usage</h2>
+        <p class="section-sub">Pick the workflow that matches how your team ships preview environments.</p>
+
+        <div class="two-col">
+          <div class="panel">
+            <h3>Scenario A: Namespace per PR</h3>
+            <p class="mini">CI creates <code>pr-1234</code>, applies a TTL, and the CronJob deletes it after expiry.</p>
+            <div class="cmd">
+              <div class="cmd-top">
+                <span>Annotate a namespace</span>
+                <button class="copy" type="button" data-copy="#cmd-ns-ttl">Copy</button>
+              </div>
+              <pre><code id="cmd-ns-ttl">kubectl annotate ns pr-1234 \
+  expiring-deployments.io/enabled="true" \
+  expiring-deployments.io/ttl-hours="24" \
+  expiring-deployments.io/owner="eng" \
+  --overwrite</code></pre>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>Scenario B: Shared namespace + expiring release</h3>
+            <p class="mini">Add a lease marker ConfigMap to your chart. When it expires, the CronJob uninstalls the Helm release.</p>
+            <div class="cmd">
+              <div class="cmd-top">
+                <span>Lease marker ConfigMap</span>
+                <button class="copy" type="button" data-copy="#cmd-lease">Copy</button>
+              </div>
+              <pre><code id="cmd-lease">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-ttl-lease" .Release.Name | trunc 63 | trimSuffix "-" }}
+  labels:
+    expiring-deployments.io/type: helm-release
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    expiring-deployments.io/enabled: "true"
+    expiring-deployments.io/ttl-hours: {{ .Values.cleanup.ttlHours | default 24 | quote }}
+    expiring-deployments.io/owner: {{ .Values.cleanup.owner | default "unknown" | quote }}</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="uninstall" data-reveal>
+        <h2 class="section-title">Uninstall</h2>
+        <p class="section-sub">Remove the CronJob and its RBAC when you no longer need automated TTL cleanup.</p>
+        <div class="cmd">
+          <div class="cmd-top">
+            <span>Helm uninstall</span>
+            <button class="copy" type="button" data-copy="#cmd-uninstall">Copy</button>
+          </div>
+          <pre><code id="cmd-uninstall">helm uninstall expiring-deployments</code></pre>
+        </div>
+      </section>
+
+      <section class="section" id="support" data-reveal>
+        <h2 class="section-title">Support & feedback</h2>
+        <p class="section-sub">
+          Questions, issues, or feature requests? Email <a href="mailto:support@crescentsoftwarelabs.com">support@crescentsoftwarelabs.com</a> or open an issue
+          on the repository.
+        </p>
+      </section>
+
+      <footer class="footer">
+        <div><strong>Expiring Deployments</strong> — Kubernetes preview environment hygiene.</div>
+        <div class="legal">
+          <strong>Disclaimer:</strong> Provided “AS IS”, without warranty of any kind (express or implied). No guarantees are made regarding availability,
+          performance, suitability, or fitness for a particular purpose. Use at your own risk. Always test in non-production environments first, and review
+          logs (dry-run) before enabling real deletions.
+        </div>
+      </footer>
+    </main>
+
+    <script defer src="https://unpkg.com/motion@12.27.0/dist/motion.js"></script>
+    <script defer src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
+    <script type="module">
+      const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+      function setUpCopyButtons() {
+        $$("[data-copy]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const selector = button.getAttribute("data-copy");
+            const target = selector ? document.querySelector(selector) : null;
+            const text = target?.textContent ?? "";
+
+            try {
+              await navigator.clipboard.writeText(text);
+              const prev = button.textContent;
+              button.textContent = "Copied";
+              setTimeout(() => (button.textContent = prev), 900);
+            } catch {
+              const prev = button.textContent;
+              button.textContent = "Copy failed";
+              setTimeout(() => (button.textContent = prev), 900);
+            }
+          });
+        });
+      }
+
+      function setUpMotion() {
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        if (reduceMotion) return;
+
+        const Motion = window.Motion;
+        if (!Motion?.animate) return;
+
+        // Subtle background pulse
+        const bg = document.querySelector(".bg");
+        if (bg) {
+          Motion.animate(
+            bg,
+            { opacity: [0.7, 1, 0.7], transform: ["scale(1)", "scale(1.03)", "scale(1)"] },
+            { duration: 10, repeat: Infinity, easing: "ease-in-out" }
+          );
+        }
+
+        // Hero entrance
+        const hero = $$("[data-hero]");
+        hero.forEach((el) => {
+          el.style.opacity = "0";
+          el.style.transform = "translateY(14px)";
+        });
+        Motion.animate(hero, { opacity: [0, 1], transform: ["translateY(14px)", "translateY(0px)"] }, { duration: 0.6, delay: Motion.stagger(0.06), easing: "ease-out" });
+
+        // Reveal sections as they come into view
+        const revealTargets = $$("[data-reveal]");
+        revealTargets.forEach((el) => {
+          el.style.opacity = "0";
+          el.style.transform = "translateY(18px)";
+        });
+
+        const revealOne = (el) => {
+          if (el.dataset.revealed === "true") return;
+          el.dataset.revealed = "true";
+          Motion.animate(el, { opacity: [0, 1], transform: ["translateY(18px)", "translateY(0px)"] }, { duration: 0.55, easing: "ease-out" });
+        };
+
+        if (typeof Motion.inView === "function") {
+          Motion.inView("[data-reveal]", (info) => revealOne(info.target), { margin: "-10% 0px -10% 0px" });
+        } else {
+          revealTargets.forEach(revealOne);
+        }
+      }
+
+      setUpCopyButtons();
+
+      const waitForMotion = () => {
+        if (window.Motion) {
+          setUpMotion();
+          return;
+        }
+        setTimeout(waitForMotion, 40);
+      };
+      waitForMotion();
+    </script>
+  </body>
 </html>
