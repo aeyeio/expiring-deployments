@@ -681,7 +681,11 @@ metadata:
           el.style.opacity = "0";
           el.style.transform = "translateY(14px)";
         });
-        Motion.animate(hero, { opacity: [0, 1], transform: ["translateY(14px)", "translateY(0px)"] }, { duration: 0.6, delay: Motion.stagger(0.06), easing: "ease-out" });
+        Motion.animate(
+          hero,
+          { transform: ["translateY(14px)", "translateY(0px)"] },
+          { duration: 0.6, delay: Motion.stagger(0.06), easing: "ease-out" }
+        );
 
         // Reveal sections as they come into view
         const revealTargets = $$("[data-reveal]");
@@ -691,13 +695,28 @@ metadata:
         });
 
         const revealOne = (el) => {
+          if (!el || !el.dataset) return;
           if (el.dataset.revealed === "true") return;
           el.dataset.revealed = "true";
-          Motion.animate(el, { opacity: [0, 1], transform: ["translateY(18px)", "translateY(0px)"] }, { duration: 0.55, easing: "ease-out" });
+          Motion.animate(
+            el,
+            { transform: ["translateY(18px)", "translateY(0px)"] },
+            { duration: 0.55, easing: "ease-out" }
+          );
         };
 
         if (typeof Motion.inView === "function") {
-          Motion.inView("[data-reveal]", (info) => revealOne(info.target), { margin: "-10% 0px -10% 0px" });
+          Motion.inView(
+            "[data-reveal]",
+            (info) => {
+              if (Array.isArray(info)) {
+                info.forEach((entry) => revealOne(entry?.target ?? entry?.element ?? entry));
+                return;
+              }
+              revealOne(info?.target ?? info?.element ?? info);
+            },
+            { margin: "-10% 0px -10% 0px" }
+          );
         } else {
           revealTargets.forEach(revealOne);
         }
