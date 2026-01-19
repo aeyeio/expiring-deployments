@@ -42,7 +42,7 @@
     <div class="panel">
       <span class="badge">Helm • Automation</span>
       <h1>Expiring Deployments</h1>
-      <p>Automate cleanup for Kubernetes preview namespaces, feature branches, QA sandboxes, and ephemeral Helm releases. Expiring Deployments is a Helm chart that ships a CronJob (backed by <code>Lottie</code> motion visuals) to enforce TTL policies, honor protected namespaces, and log every decision.</p>
+      <p>Automate cleanup for Kubernetes preview namespaces, feature branches, QA sandboxes, and ephemeral Helm releases. Expiring Deployments is a Helm chart that ships a CronJob to enforce TTL policies, honor protected namespaces, and log every decision.</p>
       <div class="actions">
         <a href="https://aeyeio.github.io/expiring-deployments/index.yaml" target="_blank" rel="noopener"><button class="primary">Download index.yaml</button></a>
         <a href="https://aeyeio.github.io/expiring-deployments/expiring-deployments-0.1.3.tgz" target="_blank" rel="noopener"><button class="secondary">Download chart</button></a>
@@ -73,7 +73,7 @@
       <p class="secondary">Need support? Email <a href="mailto:support@crescentsoftwarelabs.com">support@crescentsoftwarelabs.com</a></p>
     </div>
     <div class="panel">
-      <lottie-player src="https://assets7.lottiefiles.com/packages/lf20_fg4yppkb.json" background="transparent" speed="1" loop autoplay style="width:100%;height:320px;"></lottie-player>
+      <motion-player style="width:100%;height:320px;"></motion-player>
       <h2>How to uninstall</h2>
       <ul>
         <li><code>helm uninstall expiring-deployments</code> to remove the CronJob and RBAC.</li>
