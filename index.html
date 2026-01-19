@@ -3,55 +3,88 @@
 <head>
   <meta charset="utf-8" />
   <title>Expiring Deployments Helm Repository</title>
-  <meta name="description" content="Install the Expiring Deployments Helm chart to automatically clean up temporary namespaces and Helm releases." />
+  <meta name="description" content="Automate cleanup of Kubernetes preview namespaces and Helm releases with Expiring Deployments, a safe Helm chart that enforces TTL policies." />
+  <meta name="keywords" content="Expiring Deployments, Helm chart, Kubernetes, preview branches, CronJob cleanup, namespace TTL, helm releases" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="index,follow" />
-  <link rel="canonical" href="https://aeyeio.github.io/expiring-deployments/" />
   <meta property="og:title" content="Expiring Deployments Helm Chart" />
-  <meta property="og:description" content="Safe-by-default CronJob to delete expired namespaces and Helm releases across clusters." />
+  <meta property="og:description" content="Safe-by-default CronJob for namespaces, Helm releases, preview environments, and automation hygiene." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://aeyeio.github.io/expiring-deployments/" />
   <meta property="og:image" content="https://aeyeio.github.io/expiring-deployments/expiring-deployments-0.1.3.tgz" />
-  <link rel="preload" href="https://aeyeio.github.io/expiring-deployments/index.yaml" as="fetch" type="application/yaml" crossorigin />
+  <link rel="canonical" href="https://aeyeio.github.io/expiring-deployments/" />
+  <link rel="preload" href="https://aeyeio.github.io/expiring-deployments/index.yaml" as="fetch" type="application/x-yaml" crossorigin />
+  <script src="https://unpkg.com/@motion-canvas/core"></script>
+  <script async src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: #050505; color: #f5f5f5; }
-    main { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; gap: 1.5rem; }
-    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 1.5rem; max-width: 760px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-    h1 { font-size: clamp(2rem, 4vw, 3rem); margin-bottom: .25rem; }
-    p { margin: 0 0 1rem; line-height: 1.6; }
-    ul { padding-left: 1.25rem; }
-    a { color: #6cf0ff; text-decoration: none; }
-    a.secondary { color: #ffdf5d; }
-    .badge { display:inline-flex; gap:.5rem; align-items:center; padding:.4rem .75rem; border-radius:999px; background:#0b5f8b; font-size:.8rem; letter-spacing:.04em; text-transform:uppercase; margin-bottom:1rem; }
+    :root { background:#050505; color:#f5f5f5; font-family: "Inter", system-ui, sans-serif; }
+    body { margin:0; }
+    main { min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:3rem 1rem; gap:1.5rem; background:radial-gradient(circle at top, rgba(0,160,255,0.1), transparent 45%), #050505; }
+    .panel { background:rgba(3,3,3,0.85); border:1px solid rgba(255,255,255,0.08); border-radius:24px; padding:2rem; max-width:900px; width:100%; box-shadow:0 30px 90px rgba(0,0,0,0.35); }
+    h1 { font-size:clamp(2.2rem, 5vw, 3.4rem); margin-bottom:.25rem; }
+    h2 { margin-top:1.75rem; font-size:1.3rem; }
+    p { line-height:1.6; margin-bottom:1rem; }
+    .badge { display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .75rem; border-radius:999px; background:#0b5f8b; text-transform:uppercase; font-size:.75rem; letter-spacing:.08em; }
     .actions { display:flex; gap:.75rem; flex-wrap:wrap; }
-    button { border:none; border-radius:10px; padding:.75rem 1.25rem; font-size:1rem; font-weight:600; cursor:pointer; } 
+    button { border:none; border-radius:12px; font-size:1rem; font-weight:600; padding:.85rem 1.4rem; cursor:pointer; }
     button.primary { background:#00a0ff; color:#fff; }
-    button.secondary { background:#1e1e1e; color:#fff; border:1px solid rgba(255,255,255,0.3); }
+    button.secondary { background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.4); }
+    code { background:rgba(255,255,255,0.08); padding:.15rem .45rem; border-radius:6px; }
+    ul { margin:0; padding-left:1.2rem; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
+    .tile { padding:1rem; border-radius:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
+    footer { text-align:center; margin-top:2rem; font-size:.85rem; color:rgba(255,255,255,0.65); }
+    @media (max-width:600px){ main{padding:2rem 0.5rem;} .panel{padding:1.5rem;} }
   </style>
 </head>
 <body>
   <main>
-    <div class="card">
-      <div class="badge">Helm Chart</div>
+    <div class="panel">
+      <span class="badge">Helm • Automation</span>
       <h1>Expiring Deployments</h1>
-      <p>Lightweight cleanup CronJob that watches annotated namespaces and Helm lease markers, then deletes or uninstalls them after TTL expiration. Designed for safety: dry-run default, protected namespace allowlist, and detailed run logs.</p>
-      <ul>
-        <li>Namespace TTL: annotation-based expirations for preview/sandbox namespaces.</li>
-        <li>Helm TTL: release-scoped ConfigMap leases drive uninstall hooks.</li>
-        <li>Configurable selectors, circuit breaker, and optional owner validation.</li>
-      </ul>
+      <p>Automate cleanup for Kubernetes preview namespaces, feature branches, QA sandboxes, and ephemeral Helm releases. Expiring Deployments is a Helm chart that ships a CronJob (backed by <code>Lottie</code> motion visuals) to enforce TTL policies, honor protected namespaces, and log every decision.</p>
       <div class="actions">
-        <a href="https://aeyeio.github.io/expiring-deployments/index.yaml" rel="noopener" target="_blank"><button class="primary">Download index.yaml</button></a>
-        <a href="https://aeyeio.github.io/expiring-deployments/expiring-deployments-0.1.3.tgz" rel="noopener" target="_blank"><button class="secondary">Download chart</button></a>
+        <a href="https://aeyeio.github.io/expiring-deployments/index.yaml" target="_blank" rel="noopener"><button class="primary">Download index.yaml</button></a>
+        <a href="https://aeyeio.github.io/expiring-deployments/expiring-deployments-0.1.3.tgz" target="_blank" rel="noopener"><button class="secondary">Download chart</button></a>
       </div>
-      <p class="secondary">Add the repo: <code>helm repo add expiring-deployments https://aeyeio.github.io/expiring-deployments</code></p>
+      <div class="grid">
+        <div class="tile">
+          <h2>What it does well</h2>
+          <ul>
+            <li>Dry-run first, so audits show actions without deleting resources.</li>
+            <li>Metadata contract: <code>expiring-deployments.io/enabled</code>, <code>expires-at</code>, or <code>ttl-hours</code>.</li>
+            <li>Supports preview branches, QA clusters, and CI-created namespaces via selectors.</li>
+          </ul>
+        </div>
+        <div class="tile">
+          <h2>Install</h2>
+          <p><strong>GitHub Pages:</strong><br /><code>helm repo add expiring-deployments https://aeyeio.github.io/expiring-deployments</code><br /><code>helm install expiring-deployments expiring-deployments/expiring-deployments --version 0.1.3</code></p>
+          <p><strong>Harbor OCI:</strong><br /><code>helm registry login harbor.localhost ... --insecure</code><br /><code>helm install expiring-deployments oci://harbor.localhost/library/expiring-deployments/expiring-deployments --version 0.1.3 --insecure-skip-tls-verify</code></p>
+        </div>
+        <div class="tile">
+          <h2>Usage flows</h2>
+          <ul>
+            <li>PR previews: annotate <code>pr-1234</code> namespace with TTL; CronJob deletes it after merge + TTL.</li>
+            <li>Helm leases: include a TTL ConfigMap lease in a shared namespace; the CronJob uninstalls the release when the lease expires.</li>
+            <li>Manual sandboxes: install the chart with a TTL and let the CronJob remove the namespace later.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="secondary">Need support? Email <a href="mailto:support@crescentsoftwarelabs.com">support@crescentsoftwarelabs.com</a></p>
     </div>
-    <div class="card">
-      <h2>Developer notes</h2>
-      <p>Render or repackage with Nx:</p>
-      <pre>npx nx run expiring-deployments:helm</pre>
-      <p>Publish a new release via <code>cr upload</code> to update this repo + GitHub Releases.</p>
+    <div class="panel">
+      <lottie-player src="https://assets7.lottiefiles.com/packages/lf20_fg4yppkb.json" background="transparent" speed="1" loop autoplay style="width:100%;height:320px;"></lottie-player>
+      <h2>How to uninstall</h2>
+      <ul>
+        <li><code>helm uninstall expiring-deployments</code> to remove the CronJob and RBAC.</li>
+        <li>Drifted namespaces can be deleted with <code>kubectl delete ns &lt;name&gt;</code>.</li>
+        <li>Helm leases remain; the CronJob stops after uninstall.</li>
+      </ul>
+      <p class="secondary">As-is, no guarantees. Use the chart in non-production clusters first; review the CronJob logs before enabling real deletions.</p>
     </div>
   </main>
+  <footer>
+    <small>Expiring Deployments &middot; Automate namespace hygiene for Kubernetes previews, QA, and Helm releases.</small>
+  </footer>
 </body>
 </html>
