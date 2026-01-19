@@ -1,0 +1,83 @@
+{{- $fullname := include "expiring-deployments.fullname" . -}}
+{{- $serviceAccount := include "expiring-deployments.serviceAccountName" . -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullname }}
+  labels:
+    app.kubernetes.io/name: {{ include "expiring-deployments.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      {{- if .Values.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      {{- end }}
+      backoffLimit: 2
+      template:
+        metadata:
+          {{- with .Values.podAnnotations }}
+          annotations:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+          {{- with .Values.podLabels }}
+          labels:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+        spec:
+          serviceAccountName: {{ $serviceAccount }}
+          restartPolicy: Never
+          volumes:
+            - name: scripts
+              configMap:
+                name: {{ include "expiring-deployments.fullname" . }}-scripts
+                defaultMode: 0755
+          containers:
+            - name: expiring-deployments
+              image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: {{ toYaml .Values.image.command | nindent 14 }}
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+              env:
+                - name: DRY_RUN
+                  value: {{ ternary "true" "false" .Values.dryRun | quote }}
+                - name: FEATURES_NAMESPACES
+                  value: {{ ternary "true" "false" .Values.features.namespaces | quote }}
+                - name: FEATURES_HELM_RELEASES
+                  value: {{ ternary "true" "false" .Values.features.helmReleases | quote }}
+                - name: MANAGED_NAMESPACE_REGEX
+                  value: {{ .Values.selectors.managedNamespaceRegex | quote }}
+                - name: MANAGED_NAMESPACE_LABELS
+                  value: {{ toJson .Values.selectors.managedNamespaceLabels | quote }}
+                - name: PROTECTED_NAMESPACES
+                  value: {{ join "," .Values.safety.protectedNamespaces | quote }}
+                - name: MAX_DELETIONS_PER_RUN
+                  value: {{ .Values.safety.maxDeletionsPerRun | quote }}
+                - name: REQUIRE_OWNER_ANNOTATION
+                  value: {{ ternary "true" "false" .Values.safety.requireOwnerAnnotation | quote }}
+                - name: HELM_UNINSTALL_TIMEOUT
+                  value: {{ .Values.helm.uninstallTimeout | quote }}
+                - name: HELM_UNINSTALL_WAIT
+                  value: {{ ternary "true" "false" .Values.helm.uninstallWait | quote }}
+              resources:
+{{ toYaml .Values.resources | indent 16 }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+          {{- end }}

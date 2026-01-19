@@ -1,0 +1,446 @@
+PRD: Expiring Deployments (Expiring Helm Installs & Namespaces)
+
+1) Summary
+
+Expiring Deployments is a reusable, installable Helm chart that deploys a Kubernetes CronJob to automatically clean up temporary environments by:
+	•	Deleting expired namespaces (Namespace TTL)
+	•	Uninstalling expired Helm releases (Helm TTL)
+
+It is designed to be:
+	•	Safe-by-default (opt-in metadata, dry-run default, protected namespaces)
+	•	Reusable across clusters
+	•	Easy to adopt (simple annotations + small Helm helper template)
+
+⸻
+
+2) Problem Statement
+
+Teams create temporary environments (preview, QA, sandbox) and forget to remove them. This causes:
+	•	Unnecessary cluster spend (compute + storage + IPs + LB costs)
+	•	Resource clutter (namespaces, services, ingresses, secrets)
+	•	Operational risk (stale workloads, outdated configs, noisy alerts)
+	•	Manual cleanup overhead and inconsistent practices
+
+We need a standard, automated cleanup mechanism that scales across teams and clusters.
+
+⸻
+
+3) Goals ✅
+	1.	Single install per cluster via Helm (“installable CronJob”)
+	2.	Support two cleanup modes:
+	•	Namespace TTL: delete namespaces past TTL
+	•	Helm TTL: uninstall Helm releases past TTL
+	3.	Metadata-driven opt-in
+	4.	Safe-by-default:
+	•	dry-run mode
+	•	protected namespaces
+	•	allowlist/selector support
+	•	clear audit logs
+	5.	Simple adoption for CI/CD and chart authors
+
+⸻
+
+4) Non-Goals ❌
+	•	Not a general “garbage collector” for arbitrary unlabeled resources
+	•	Not responsible for cleaning external cloud resources (RDS, S3, etc.)
+	•	Not handling complicated “data retention policies” for PVCs beyond namespace deletion behavior
+	•	Not a replacement for GitOps “desired state” cleanup (though compatible)
+
+⸻
+
+5) Users & Stakeholders 👥
+
+Primary users
+	•	Developers using preview environments
+	•	CI/CD pipelines that create ephemeral installs
+
+Stakeholders
+	•	Platform/SRE (operability, safety, cluster hygiene)
+	•	Security (least privilege, preventing accidental deletion)
+	•	Finance/Leadership (cost control)
+
+⸻
+
+6) Use Cases
+
+A) Preview environment per PR (namespace-per-preview)
+	•	CI creates namespace pr-1234
+	•	Annotates namespace with TTL
+	•	Expiring Deployments deletes the namespace after TTL (or after PR is merged + TTL)
+
+B) Ephemeral Helm install in a shared namespace
+	•	Teams deploy to dev-sandboxes namespace
+	•	Release includes a TTL “lease marker” resource
+	•	Expiring Deployments uninstalls the Helm release after TTL
+
+C) Ad-hoc manual sandbox
+	•	Engineer installs chart with TTL flags/values
+	•	No follow-up needed; it cleans itself
+
+⸻
+
+7) Product Requirements
+
+7.1 Functional Requirements
+
+Namespace TTL
+	•	Identify namespaces opt-in via annotation (enabled=true)
+	•	Compute expiration based on TTL
+	•	Delete expired namespaces
+	•	Skip protected namespaces always
+
+Helm TTL
+	•	Identify Helm releases opt-in via a lease/marker resource created by the release
+	•	Compute expiration based on TTL
+	•	Uninstall expired releases
+	•	Skip protected namespaces always
+
+Shared logic
+	•	TTL derived from metadata:
+	•	expires-at (absolute time) OR
+	•	ttl-hours (relative time from created-at / creationTimestamp fallback)
+	•	Clear logs: what was evaluated, what was deleted, and why
+	•	Dry-run mode: logs actions without deleting anything
+
+7.2 Non-Functional Requirements
+	•	Idempotent: running multiple times doesn’t cause harm
+	•	Safe: never touches protected namespaces
+	•	Configurable: allowlist/selector so it only manages intended namespaces
+	•	Reliable: handles malformed metadata gracefully (skip + log)
+	•	Auditable: emits clear per-run summary logs
+
+⸻
+
+8) Success Metrics 📈
+	•	≥ 90% reduction in orphaned preview namespaces within 30 days
+	•	≥ 99% CronJob run success rate (excluding intentional skips)
+	•	0 accidental deletions of protected namespaces
+	•	Measurable drop in non-prod cluster cost/usage (CPU/mem counts, #namespaces)
+
+⸻
+
+9) Rollout Plan 🧪➡️✅
+
+Phase 0: Dry-run
+	•	Install Expiring Deployments cluster-wide with dryRun=true
+	•	Observe logs for 1–2 weeks
+	•	Validate allowlist and metadata correctness
+
+Phase 1: Namespace TTL enforcement
+	•	Enable real deletion for allowlisted preview namespaces
+	•	Keep Helm TTL disabled initially
+
+Phase 2: Helm TTL enforcement
+	•	Enable Helm TTL uninstall for shared namespaces that are explicitly allowlisted
+	•	Add stronger safeguards (owner annotations, required labels)
+
+Phase 3 (optional): Notifications & metrics
+	•	Slack/webhook notifications on cleanup
+	•	Prometheus metrics (counts, failures, duration)
+
+⸻
+
+10) Risks & Mitigations 🛡️
+
+Risk: accidental deletion
+	•	Mitigation: opt-in annotation required + protected namespaces + dry-run default + allowlist
+
+Risk: Helm uninstall requires broad RBAC
+	•	Mitigation: scope to allowlisted namespaces; optionally bind permissions only in managed namespaces; document recommended use in non-prod
+
+Risk: namespaces stuck terminating
+	•	Mitigation: detect and log “stuck” namespaces; do not remove finalizers automatically (unless explicitly enabled later)
+
+⸻
+
+11) Open Questions (Decisions) 🤔
+	•	Should we enforce a required owner annotation for all TTL-managed objects?
+	•	Do we need a “max deletes per run” circuit breaker?
+	•	Do we support cluster-scoped Helm resources? (recommended: avoid for TTL releases)
+
+⸻
+
+Tech Spec: Expiring Deployments Helm Chart
+
+1) Overview
+
+Expiring Deployments is delivered as a Helm chart that installs:
+	•	CronJob (runs periodically)
+	•	ServiceAccount
+	•	ClusterRole / ClusterRoleBinding
+	•	ConfigMap for configuration (optional; values env is also fine)
+
+The job runs a TTL evaluation loop:
+	1.	Scan namespaces → delete expired namespaces
+	2.	Scan Helm “lease markers” → uninstall expired Helm releases
+	3.	Print a run summary (counts, actions, errors)
+
+⸻
+
+2) Why Helm “lease marker” instead of reading Helm release metadata?
+
+Helm itself does not provide a stable, user-controlled place to attach arbitrary TTL annotations that are reliably available via helm list.
+
+So we implement Helm TTL by requiring a marker resource (recommended: ConfigMap) created as part of the release, containing TTL metadata.
+
+This is:
+	•	Simple
+	•	Visible in Kubernetes
+	•	Works across Helm upgrades
+	•	Easy to query with label selectors
+
+⸻
+
+3) Metadata Contract (Namespace + Helm Lease Marker)
+
+Use an annotation prefix you control (recommended best practice). Below uses expiring-deployments.io/* as a placeholder — swap to your org domain if desired.
+
+3.1 Required opt-in annotation
+	•	expiring-deployments.io/enabled: "true"
+
+3.2 Expiration inputs (choose one)
+
+Option A: relative TTL
+	•	expiring-deployments.io/ttl-hours: "24"
+	•	Optional:
+	•	expiring-deployments.io/created-at: "2026-01-18T10:00:00Z" (RFC3339)
+
+If created-at missing, fallback to the resource’s metadata.creationTimestamp.
+
+Option B: absolute expiration
+	•	expiring-deployments.io/expires-at: "2026-01-20T00:00:00Z" (RFC3339)
+
+3.3 Recommended governance metadata
+	•	expiring-deployments.io/owner: "team-name"
+	•	expiring-deployments.io/purpose: "preview|sandbox|qa"
+	•	expiring-deployments.io/source: "github-pr-1234"
+
+These are useful for safety & audit logs.
+
+⸻
+
+4) Helm TTL Marker Resource
+
+4.1 Resource type
+
+Use a namespaced ConfigMap created by the release:
+
+Template example (to be embedded into app charts that want Helm TTL):
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-ttl-lease" .Release.Name | trunc 63 | trimSuffix "-" }}
+  labels:
+    expiring-deployments.io/type: helm-release
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    expiring-deployments.io/enabled: "true"
+    expiring-deployments.io/ttl-hours: {{ .Values.cleanup.ttlHours | default 24 | quote }}
+    # created-at optional; creationTimestamp fallback works fine
+    expiring-deployments.io/owner: {{ .Values.cleanup.owner | default "unknown" | quote }}
+data:
+  note: "TTL lease marker for Helm release cleanup"
+
+4.2 How Expiring Deployments maps marker → release
+	•	Namespace comes from the marker’s namespace
+	•	Release name from label: app.kubernetes.io/instance
+
+⸻
+
+5) Cleanup Precedence Rules
+	1.	Namespace deletion wins
+	•	If a namespace is expired and scheduled for deletion, skip Helm uninstalls in that namespace (avoids noisy failures and wasted work).
+	2.	If only a Helm lease marker is expired:
+	•	Uninstall the release in that namespace.
+
+⸻
+
+6) Cleanup Algorithm
+
+6.1 Namespace Sweep
+	1.	List namespaces
+	2.	Filter:
+	•	expiring-deployments.io/enabled == "true"
+	•	namespace name not in protectedNamespaces
+	•	matches allowlist selectors (regex/labels)
+	3.	Compute expiry:
+	•	If expires-at: parse RFC3339 → expiry
+	•	Else:
+	•	baseTime = created-at OR creationTimestamp
+	•	expiry = baseTime + ttlHours
+	4.	If expired:
+	•	if dryRun: log “would delete”
+	•	else: DELETE /api/v1/namespaces/{name}
+
+6.2 Helm Lease Sweep
+	1.	List ConfigMaps across namespaces with label selector:
+	•	expiring-deployments.io/type=helm-release
+	2.	Filter:
+	•	annotation enabled
+	•	namespace not protected
+	•	namespace allowlisted
+	•	namespace not already scheduled for deletion
+	3.	Compute expiry same rules as above
+	4.	If expired:
+	•	helm uninstall <release> -n <namespace> --wait --timeout <X>
+
+⸻
+
+7) Helm Chart Design
+
+7.1 Chart contents
+	•	templates/cronjob.yaml
+	•	templates/serviceaccount.yaml
+	•	templates/rbac.yaml
+	•	values.yaml
+	•	(optional) templates/configmap-config.yaml
+
+7.2 CronJob settings (recommended defaults)
+	•	concurrencyPolicy: Forbid
+	•	startingDeadlineSeconds: 600
+	•	successfulJobsHistoryLimit: 1
+	•	failedJobsHistoryLimit: 3
+	•	activeDeadlineSeconds: 900 (or configurable)
+
+⸻
+
+8) Configuration (values.yaml)
+
+Recommended core values:
+
+schedule: "0 * * * *"   # hourly
+dryRun: true
+
+features:
+  namespaces: true
+  helmReleases: true
+
+selectors:
+  managedNamespaceRegex: "^pr-|^preview-|^sandbox-"
+  managedNamespaceLabels: {} # optional
+
+safety:
+  protectedNamespaces:
+    - kube-system
+    - kube-public
+    - default
+    - prod
+    - production
+  maxDeletionsPerRun: 20        # circuit breaker (recommended)
+  requireOwnerAnnotation: false # optional hardening
+
+helm:
+  uninstallTimeout: "5m"
+  uninstallWait: true
+
+
+⸻
+
+9) RBAC Model 🔐
+
+9.1 Namespace TTL RBAC (cluster scope required)
+	•	get, list, delete on namespaces
+
+9.2 Helm TTL RBAC (important caveat)
+
+Uninstalling a Helm release means deleting multiple namespaced resources. That requires the CronJob service account to have delete permissions in the target namespaces for the resource kinds your charts install.
+
+Recommended approach:
+	•	Use allowlisted namespaces and grant permissions only in those namespaces (best practice),
+OR use a cluster-wide role in non-prod clusters where risk is acceptable.
+
+At minimum, the SA also needs:
+	•	get, list configmaps (to find lease markers)
+	•	access to Helm release storage objects:
+	•	usually secrets (sh.helm.release.v1.*) or configmaps depending on Helm storage driver
+	•	so: get, list (and sometimes delete) on secrets/configmaps in managed namespaces
+
+Design choice in this spec
+	•	Provide a default ClusterRole suitable for non-prod
+	•	Provide an optional “restricted mode” where user supplies a list of namespaces and we create RoleBindings per namespace
+
+⸻
+
+10) Implementation Language & Container Image
+
+Recommendation: Implement cleanup logic as a small Go CLI
+
+Reason: time parsing + JSON parsing + reliable behavior across distros is much safer than shell + date.
+
+Container strategy
+	•	Minimal image containing:
+	•	expiring-deployments binary
+	•	helm binary (or use Helm SDK later)
+
+Phase 2 enhancement
+	•	Use Helm SDK (Go) to uninstall releases without shelling out to helm
+
+⸻
+
+11) Observability 📣
+
+Logs
+	•	Per run:
+	•	scanned namespaces count
+	•	scanned leases count
+	•	deletions attempted/succeeded/failed
+	•	dry-run mode indicator
+	•	Per deletion:
+	•	timestamp, resource type, name/namespace, expiry calculation inputs, reason
+
+Optional future
+	•	Emit Kubernetes Events for deletes
+	•	Push metrics to Pushgateway (CronJob-friendly)
+
+⸻
+
+12) Error Handling & Retry Behavior
+	•	If metadata invalid:
+	•	Skip + log warning (do not delete)
+	•	If delete fails:
+	•	Log error; allow CronJob retry next schedule
+	•	If helm uninstall fails:
+	•	Log error; keep lease marker so it retries later
+	•	Circuit breaker:
+	•	maxDeletionsPerRun stops runaway deletion due to misconfig
+
+⸻
+
+13) Testing Plan ✅
+
+Unit Tests (Go)
+	•	TTL parsing:
+	•	expires-at overrides ttl-hours
+	•	created-at fallback to creationTimestamp
+	•	malformed TTL/created-at safe skip
+	•	Filtering:
+	•	protected namespace skip
+	•	allowlist regex/labels
+
+Integration Tests (kind)
+	•	Create namespace with TTL=0h → verify deletion attempt
+	•	Install a small helm release that creates lease marker with TTL=0h → verify uninstall
+
+E2E in CI (optional)
+	•	Install Expiring Deployments in dry-run, verify logs
+	•	Turn off dry-run in ephemeral cluster, verify deletion
+
+⸻
+
+14) Example Usage
+
+Namespace TTL
+
+kubectl annotate ns pr-1234 \
+  expiring-deployments.io/enabled="true" \
+  expiring-deployments.io/ttl-hours="24" \
+  expiring-deployments.io/owner="eng" \
+  --overwrite
+
+Helm TTL (chart values)
+
+cleanup:
+  ttlHours: 24
+  owner: "eng"

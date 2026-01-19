@@ -1,0 +1,58 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: dtzar/helm-kubectl
+  tag: "3.14.4"
+  pullPolicy: IfNotPresent
+  command: ["/bin/sh", "/scripts/run.sh"]
+
+schedule: "0 * * * *" # hourly
+dryRun: true
+activeDeadlineSeconds: 900
+
+features:
+  namespaces: true
+  helmReleases: true
+
+selectors:
+  managedNamespaceRegex: "^pr-|^preview-|^sandbox-"
+  managedNamespaceLabels: {}
+
+safety:
+  protectedNamespaces:
+    - kube-system
+    - kube-public
+    - default
+    - prod
+    - production
+  maxDeletionsPerRun: 20
+  requireOwnerAnnotation: false
+
+helm:
+  uninstallTimeout: "5m"
+  uninstallWait: true
+
+rbac:
+  scope: cluster # cluster|namespaces
+  namespaces: [] # when scope=namespaces, create per-namespace RoleBinding
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
