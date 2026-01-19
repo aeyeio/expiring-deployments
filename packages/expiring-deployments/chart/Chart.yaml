@@ -1,0 +1,6 @@
+apiVersion: v2
+name: expiring-deployments
+description: Cleanup CronJob that deletes expired namespaces and Helm releases using TTL annotations
+type: application
+version: 0.1.3
+appVersion: "0.1.3"

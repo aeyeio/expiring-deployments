@@ -1,0 +1,23 @@
+{
+  "name": "expiring-deployments",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "helm": {
+      "executor": "@nx-extensions/helm:package",
+      "outputs": [
+        "{options.outputFolder}"
+      ],
+      "options": {
+        "chartFolder": "packages/expiring-deployments/chart",
+        "outputFolder": "{workspaceRoot}/dist/charts/{projectRoot}",
+        "push": false,
+        "remote": "oci://localhost:5000/helm-charts",
+        "dependencies": {
+          "update": true,
+          "build": true,
+          "repositories": []
+        }
+      }
+    }
+  }
+}
